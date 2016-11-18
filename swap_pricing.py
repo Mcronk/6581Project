@@ -7,7 +7,6 @@ This is a temporary script file.
 
 import pandas
 import matplotlib.pyplot as plt
-import seaborn as sns
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 
@@ -16,17 +15,16 @@ from mpl_toolkits.mplot3d import Axes3D
 # odd rows are put data
 data = pandas.read_csv('SPY-options-15-minute-calcs-20161101.csv')
     
-
 QUOTE_DATE = "2016-11-01 16:00:00"
 EXPIRATION = "2016-11-18"
-T = 17/252
+T = 17.0/252
 STEP = 5
 
-print(data.size)
+# print(data.size)
 data = data[data['quote_datetime']==QUOTE_DATE]
-print(data.size)
+# print(data.size)
 data = data[data['expiration']==EXPIRATION]
-print(data.size)
+# print(data.size)
 
 S = (data.iloc[0]['underlying_bid'] + data.iloc[0]['underlying_ask'])/2
 print("S: {0}".format(S))
@@ -48,6 +46,7 @@ puts['option_price'] = (puts['bid'] +puts['ask'])/2
 
 data = pandas.concat([calls,puts])
 
+print (T)
 price = (2*STEP)/T * sum(data['option_price']/(data['strike']**2))
 
 print("Variance Swap Price: {}".format(price))
