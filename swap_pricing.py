@@ -17,10 +17,10 @@ from mpl_toolkits.mplot3d import Axes3D
 
 
 def is_nth_weekday(nth, daynum, today):
-    return calendar.Calendar(nth).monthdatescalendar(
+    return calendar.Calendar(daynum).monthdatescalendar(
         today.year, 
         today.month
-    )[daynum][0]
+    )[nth][0]
 
 
 #Reference for all zip files containing csv data
@@ -44,8 +44,10 @@ for f in fileList:
 	
 	QUOTE_DATE = fileDate.strftime('%Y-%m-%d')	
 	QUOTE_DATE = QUOTE_DATE + " 16:00:00"
-	EXPIRATION_DATETIME = is_nth_weekday(3,3,fileDate)
+	EXPIRATION_DATETIME = is_nth_weekday(3,4,fileDate)# 3 is thurday, 4 is friday, 5 is saturday
 	EXPIRATION = str(EXPIRATION_DATETIME)
+
+
 
 	difference = (EXPIRATION_DATETIME - fileDate).days
 	T = difference/252.0
@@ -53,9 +55,11 @@ for f in fileList:
 
 
 	# print(data.shape[0])
-	# data = data[data['quote_datetime']==QUOTE_DATE]
+	data = data[data['quote_datetime']==QUOTE_DATE]
 	# print(data.shape[0])
 	data = data[data['expiration']==EXPIRATION]
+
+
 	# print(data.shape[0])
 	# print(data.head(5))
 
