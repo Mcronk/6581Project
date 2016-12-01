@@ -4,6 +4,7 @@ import pandas
 import csv
 import calendar
 import datetime
+import sys
 import zipfile
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,7 +18,7 @@ QUOTEPERIOD = "16:00:00"
 # 3 = thurs, 4 = fri, 5 = sat
 EXPIRE_DAY = 4
 
-YEARS = ["2015"]
+YEARS = ["2016"]
 #===========================
 
 
@@ -34,15 +35,7 @@ def filter_years(folder):
 
 
 
-#create csv
-fieldnames = ['quote_date','expiration_date','var_swap_price']
 
-resultsFile = 'results_{}.csv'.format(datetime.date.today())
-if os.path.exists(resultsFile):
-	os.remove(resultsFile) 
-with open(resultsFile,'a') as csvfile:
-	writer = csv.DictWriter(csvfile, fieldnames = fieldnames)
-	writer.writeheader()
 
 
 # run in /development/execution/options-15-minute-calcs/
@@ -53,7 +46,16 @@ folderList = [a for a in os.listdir(x) if os.path.isdir(a) and a[0]!='.']
 folderList = filter(filter_years, folderList)
 if not folderList:
 	print "No relevant years found.  Change YEARS parameter in script."
+	sys.exit()
+	#create csv
+fieldnames = ['quote_date','expiration_date','var_swap_price']
 
+resultsFile = 'results_{}.csv'.format(datetime.datetime.today().strftime("%Y%m%d-%H%M%S"))
+if os.path.exists(resultsFile):
+	os.remove(resultsFile) 
+with open(resultsFile,'a') as csvfile:
+	writer = csv.DictWriter(csvfile, fieldnames = fieldnames)
+	writer.writeheader()
 for folder in folderList:
 
 	folderList2 = [os.path.join(folder,a) for a in os.listdir(folder) 
