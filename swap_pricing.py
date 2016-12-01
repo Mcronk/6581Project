@@ -23,19 +23,25 @@ YEARS = ["2016"]
 
 
 
-def is_nth_weekday(nth, daynum, today):
-    return calendar.Calendar(daynum).monthdatescalendar(
-        today.year, 
-        today.month
-    )[nth][0]
+def is_nth_weekday(nth, daynum, today, month_inc):
+	#breaks if month_inc > 11
+
+	month = today.month
+	year = today.year
+
+	if month + month_inc > 12:
+		month = month + month_inc - 12
+		year = year + 1
+
+	retval = calendar.Calendar(daynum).monthdatescalendar(
+					year,
+					month
+					)[nth][0]
+	return retval
 
 def filter_years(folder):
 	if folder[0:4] in YEARS:
 		return True
-
-
-
-
 
 
 # run in /development/execution/options-15-minute-calcs/
@@ -56,6 +62,7 @@ if os.path.exists(resultsFile):
 with open(resultsFile,'a') as csvfile:
 	writer = csv.DictWriter(csvfile, fieldnames = fieldnames)
 	writer.writeheader()
+
 for folder in folderList:
 
 	folderList2 = [os.path.join(folder,a) for a in os.listdir(folder) 
@@ -65,7 +72,9 @@ for folder in folderList:
 	#Reference for all zip files containing csv data
 		fileList = os.listdir(folder2)
 		fileList = [os.path.join(folder2, f) for f in fileList]
+
 		for f in fileList:
+
 			zip_ref = zipfile.ZipFile(f, 'r')
 			zip_ref.extractall(folder2)
 			zip_ref.close()
@@ -75,51 +84,81 @@ for folder in folderList:
 			#evens rows are call data
 			# odd rows are put data
 
-			data = pandas.read_csv(fileName)
+			for month_inc in range(0,6):
 
-			fileDate = datetime.date(int(f[-12:-8]),int(f[-8:-6]),int(f[-6:-4]))
-			
-			QUOTE_DATE = fileDate.strftime('%Y-%m-%d')	
-			QUOTE_DATE = QUOTE_DATE + " " + QUOTEPERIOD
-			EXPIRATION_DATETIME = is_nth_weekday(3,EXPIRE_DAY,fileDate)# 3 is thurday, 4 is friday, 5 is saturday
-			EXPIRATION = str(EXPIRATION_DATETIME)
-			print "Processing %s" %(QUOTE_DATE)
+				data = pandas.read_csv(fileName)
 
-			difference = (EXPIRATION_DATETIME - fileDate).days
-			T = difference/252.0
-			STEP = 5
+				fileDate = datetime.date(int(f[-12:-8]),int(f[-8:-6]),int(f[-6:-4]))
+				
+				QUOTE_DATE = fileDate.strftime('%Y-%m-%d')	
+				QUOTE_DATE = QUOTE_DATE #+ " " + QUOTEPERIOD
 
-			data = data[data['quote_datetime']==QUOTE_DATE]
-			data = data[data['expiration']==EXPIRATION]
+				EXPIRATION_DATETIME = is_nth_weekday(3,EXPIRE_DAY,fileDate, month_inc)# 3 is thurday, 4 is friday, 5 is saturday
+				EXPIRATION = str(EXPIRATION_DATETIME)
+				print EXPIRATION
+				print "Processing %s" %(QUOTE_DATE)
 
-			S = (data.iloc[0]['underlying_bid'] + data.iloc[0]['underlying_ask'])/2
+				difference = (EXPIRATION_DATETIME - fileDate).days
+				T = difference/252.0
+				STEP = 5
 
-			calls = data[::2]
-			puts = data[1::2]
+				#print(data['quote_datetime'][0])
 
-			# filter for out-of-money options
-			calls = calls[calls['strike']>S]
-			puts = puts[puts['strike']<=S]
+				#data['quote_date'] = [a.split()[0] for a in data['quote_datetime']]
+				#print(data['quote_date'][0])
 
-			# filter for step size
-			calls = calls[calls['strike']%STEP==0]
-			puts = puts[puts['strike']%STEP==0]
+				#data = data[data['quote_date']==QUOTE_DATE]
 
-			# create option price from bid/ask spread
-			calls['option_price'] = (calls['bid'] + calls['ask'])/2
-			puts['option_price'] = (puts['bid'] +puts['ask'])/2
+				#remove records with no trading volume
+				data = data[data['trade_volume']!=0]
 
-			data = pandas.concat([calls,puts])
+				# remove records with wrong expiration
+				data = data[data['expiration']==EXPIRATION]
 
-			price = (2*STEP)/T * sum(data['option_price']/(data['strike']**2))
+				if data.empty:
+					print "BREAK"
+					break
 
-			# print("Variance Swap Price: {}".format(price))
+				#S = (data.iloc[0]['underlying_bid'] + data.iloc[0]['underlying_ask'])/2
+				
 
-			#Add info to combined csv in parent directory :D
-			#delete expanded file
+				calls = data[::2]
+				puts = data[1::2]
+
+				# filter for step size
+				calls = calls[calls['strike']%STEP==0]
+				puts = puts[puts['strike']%STEP==0]
+
+				# filter for out-of-money options
+				calls = calls[calls['strike']>calls['active_underlying_price']]
+				puts = puts[puts['strike']<=puts['active_underlying_price']]
+
+
+						
+
+
+				# create option price from bid/ask spread
+				#calls['option_price'] = (calls['bid'] + calls['ask'])/2
+				#puts['option_price'] = (puts['bid'] +puts['ask'])/2
+
+
+				data = pandas.concat([calls,puts])
+
+				for strike in data['strike']:
+					tmpdata = data[data['strike']==strike]
+
+				data['vwap'] = data['close']*data['trade_volume']/sum(data['trade_volume'])
+
+				#price = (2*STEP)/T * sum(data['option_price']/(data['strike']**2))
+				price = (2*STEP)/T * sum(data['close']/(data['strike']**2))
+
+				# print("Variance Swap Price: {}".format(price))
+
+				#Add info to combined csv in parent directory :D
+				#delete expanded file
+
+				with open(resultsFile,'a') as csvfile:
+					csvWriter = csv.DictWriter(csvfile,fieldnames=fieldnames)
+					csvWriter.writerow({'quote_date': QUOTE_DATE, 'expiration_date':EXPIRATION, 'var_swap_price':price})
 			os.remove(fileName)
-			with open(resultsFile,'a') as csvfile:
-				csvWriter = csv.DictWriter(csvfile,fieldnames=fieldnames)
-				csvWriter.writerow({'quote_date': QUOTE_DATE, 'expiration_date':EXPIRATION, 'var_swap_price':price})
-
 
