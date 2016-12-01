@@ -16,6 +16,8 @@ QUOTEPERIOD = "16:00:00"
 
 # 3 = thurs, 4 = fri, 5 = sat
 EXPIRE_DAY = 4
+
+YEARS = ["2015"]
 #===========================
 
 
@@ -25,6 +27,11 @@ def is_nth_weekday(nth, daynum, today):
         today.year, 
         today.month
     )[nth][0]
+
+def filter_years(folder):
+	if folder[0:4] in YEARS:
+		return True
+
 
 
 #create csv
@@ -41,6 +48,11 @@ with open(resultsFile,'a') as csvfile:
 # run in /development/execution/options-15-minute-calcs/
 x = os.getcwd()
 folderList = [a for a in os.listdir(x) if os.path.isdir(a) and a[0]!='.']
+
+#remove folders for years we don't care about
+folderList = filter(filter_years, folderList)
+if not folderList:
+	print "No relevant years found.  Change YEARS parameter in script."
 
 for folder in folderList:
 
